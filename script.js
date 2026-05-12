@@ -105,12 +105,26 @@ async function processFile(file) {
 async function handleFiles(fileList) {
   const files = [...fileList];
   if (!files.length) return;
+  el('globalWarnings').innerHTML = '';
   const unsupported = files.filter((f) => !['image/jpeg', 'image/png', 'image/heic', 'image/heif'].includes(f.type) && !/\.(jpe?g|png|heic|heif)$/i.test(f.name));
   if (unsupported.length) {
     el('globalWarnings').innerHTML = `<div class="error">Unsupported file(s): ${unsupported.map((f) => f.name).join(', ')}</div>`;
   }
   const accepted = files.filter((f) => !unsupported.includes(f));
-  for (const file of accepted) state.photos.push(await processFile(file));
+  const failed = [];
+  for (const file of accepted) {
+    try {
+      state.photos.push(await processFile(file));
+    } catch (err) {
+      failed.push(`${file.name} (${err.message})`);
+    }
+  }
+
+  if (failed.length) {
+    const html = `<div class="error">Could not load: ${failed.join(', ')}</div>`;
+    el('globalWarnings').innerHTML += html;
+  }
+
   if (!state.selectedId && state.photos.length) state.selectedId = state.photos[0].id;
   render();
 }
@@ -217,8 +231,33 @@ el('exportCsvBtn').addEventListener('click', () => {
   downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), 'photo-metadata.csv');
 });
 
+function openFilePicker() {
+  const input = el('fileInput');
+  if (typeof input.showPicker === 'function') {
+    input.showPicker();
+    return;
+  }
+  input.click();
+}
+
 const dropzone = el('dropzone');
 dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
 dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
 dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
-el('fileInput').addEventListener('change', (e) => handleFiles(e.target.files));
+
+dropzone.addEventListener('click', (e) => {
+  if (e.target.closest('label[for="fileInput"]')) return;
+  openFilePicker();
+});
+
+dropzone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    openFilePicker();
+  }
+});
+
+el('fileInput').addEventListener('change', (e) => {
+  handleFiles(e.target.files);
+  e.target.value = '';
+});
