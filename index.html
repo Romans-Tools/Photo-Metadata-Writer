@@ -48,6 +48,17 @@
         <button id="applyAllBtn" class="button primary" type="button">Apply to all photos</button>
       </section>
 
+      <section class="card renaming-card">
+        <h3>Bulk renaming</h3>
+        <div class="rename-grid">
+          <label>Prefix<input id="renamePrefix" type="text" placeholder="wedding" /></label>
+          <label>Suffix<input id="renameSuffix" type="text" placeholder="edited" /></label>
+          <label>Start number<input id="renameStart" type="number" min="0" value="1" /></label>
+          <label>Digits<input id="renameDigits" type="number" min="1" value="3" /></label>
+        </div>
+        <small>Each output file name is built like: prefix_original_suffix_001.jpg. You can override per photo below.</small>
+      </section>
+
       <section class="card actions-card">
         <button id="downloadSelectedBtn" class="button primary" type="button">Download selected updated image</button>
         <button id="downloadAllBtn" class="button" type="button">Download all updated as ZIP</button>
@@ -67,6 +78,7 @@
         <div class="file-warning"></div>
         <details>
           <summary>Per-photo metadata override</summary>
+          <label>Custom filename (no extension)<input class="rename-input" type="text" placeholder="custom_name" /></label>
           <form class="photo-form metadata-grid"></form>
         </details>
         <button class="button small download-one" type="button">Download updated image</button>

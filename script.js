@@ -5,7 +5,7 @@ import piexif from 'piexifjs';
 const fields = [
   ['title', 'Title'], ['description', 'Caption/Description'], ['credit', 'Photographer/Credit'],
   ['copyright', 'Copyright'], ['eventName', 'Event name'], ['location', 'Location'],
-  ['city', 'City'], ['state', 'State'], ['country', 'Country'], ['dateTaken', 'Date taken'],
+  ['city', 'City'], ['state', 'State'], ['country', 'Country'], ['dateTaken', 'Date taken (YYYY:MM:DD HH:MM:SS)'],
   ['organization', 'Organization/Unit'], ['keywords', 'Keywords/tags (comma separated)']
 ];
 
@@ -18,7 +18,8 @@ function createFields(form, prefix, values = {}) {
     const wrap = document.createElement('label');
     wrap.textContent = label;
     const input = document.createElement('input');
-    input.name = key; input.value = values[key] ?? '';
+    input.name = key;
+    input.value = values[key] ?? '';
     input.placeholder = label;
     input.id = `${prefix}-${key}`;
     wrap.appendChild(input);
@@ -37,6 +38,31 @@ function mergeMetadata(base, override) {
   return merged;
 }
 
+function sanitizeFileNamePart(value) {
+  return value.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-').replace(/\s+/g, '_').replace(/-+/g, '-').replace(/^[-_.]+|[-_.]+$/g, '');
+}
+
+function getFileStemAndExt(fileName) {
+  const dot = fileName.lastIndexOf('.');
+  if (dot <= 0) return { stem: fileName, ext: '' };
+  return { stem: fileName.slice(0, dot), ext: fileName.slice(dot) };
+}
+
+function buildRenamedFileName(photo, index) {
+  const { stem, ext } = getFileStemAndExt(photo.file.name);
+  const custom = sanitizeFileNamePart(photo.rename || '');
+  if (custom) return `${custom}${ext}`;
+
+  const prefix = sanitizeFileNamePart(el('renamePrefix').value.trim());
+  const suffix = sanitizeFileNamePart(el('renameSuffix').value.trim());
+  const digits = Math.max(1, Number.parseInt(el('renameDigits').value || '3', 10));
+  const startAt = Number.parseInt(el('renameStart').value || '1', 10);
+  const sequence = String(startAt + index).padStart(digits, '0');
+
+  const newStem = [prefix, stem, suffix, sequence].filter(Boolean).join('_');
+  return `${newStem || stem}${ext}`;
+}
+
 async function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -47,7 +73,6 @@ async function fileToDataUrl(file) {
 }
 
 function applyExifToJpeg(dataUrl, meta) {
-  // Browser-side writing is most reliable for JPEG EXIF fields. IPTC/XMP mappings are partial.
   const exif = { '0th': {}, Exif: {}, GPS: {}, '1st': {}, thumbnail: null };
   if (meta.title) exif['0th'][piexif.ImageIFD.ImageDescription] = meta.title;
   if (meta.description) exif['0th'][piexif.ImageIFD.XPComment] = meta.description;
@@ -69,7 +94,7 @@ async function processFile(file) {
   const id = crypto.randomUUID();
   const photo = {
     id, file, type, ext, dataUrl, existing: readable || {},
-    batchMeta: {}, overrideMeta: {}, warning: ''
+    batchMeta: {}, overrideMeta: {}, rename: '', warning: ''
   };
   if (!['jpg', 'jpeg'].includes(ext)) {
     photo.warning = 'Non-JPEG detected. Embedded metadata writing may be limited for this format.';
@@ -94,16 +119,25 @@ function render() {
   const list = el('filesList');
   list.innerHTML = '';
   const template = el('fileCardTemplate');
-  state.photos.forEach((photo) => {
+  state.photos.forEach((photo, index) => {
     const node = template.content.firstElementChild.cloneNode(true);
     node.querySelector('.thumb').src = photo.dataUrl;
     const existingDesc = Object.entries(photo.existing || {}).slice(0, 6).map(([k, v]) => `${k}: ${v}`).join('<br>') || 'No readable metadata found.';
-    node.querySelector('.file-info').innerHTML = `<strong>${photo.file.name}</strong><br>Size: ${(photo.file.size / 1024).toFixed(1)} KB<br>Type: ${photo.file.type || photo.ext}<br><em>Existing metadata:</em><br>${existingDesc}`;
+    node.querySelector('.file-info').innerHTML = `<strong>${photo.file.name}</strong><br>Renamed to: <strong>${buildRenamedFileName(photo, index)}</strong><br>Size: ${(photo.file.size / 1024).toFixed(1)} KB<br>Type: ${photo.file.type || photo.ext}<br><em>Existing metadata:</em><br>${existingDesc}`;
     node.querySelector('.file-warning').textContent = photo.warning;
+
+    const renameInput = node.querySelector('.rename-input');
+    renameInput.value = photo.rename;
+    renameInput.addEventListener('input', () => {
+      photo.rename = renameInput.value;
+      state.selectedId = photo.id;
+      render();
+    });
+
     const form = node.querySelector('.photo-form');
     createFields(form, `${photo.id}`, photo.overrideMeta);
     form.addEventListener('input', () => { photo.overrideMeta = formToObject(form); state.selectedId = photo.id; });
-    node.querySelector('.download-one').addEventListener('click', () => downloadOne(photo));
+    node.querySelector('.download-one').addEventListener('click', () => downloadOne(photo, index));
     list.appendChild(node);
   });
 }
@@ -121,22 +155,25 @@ async function updatedBlob(photo) {
 
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
   URL.revokeObjectURL(url);
 }
 
-async function downloadOne(photo) {
+async function downloadOne(photo, index) {
   try {
     const blob = await updatedBlob(photo);
-    downloadBlob(blob, photo.file.name.replace(/(\.[^.]+)$/i, '_metadata$1'));
+    downloadBlob(blob, buildRenamedFileName(photo, index));
   } catch (err) { alert(err.message); }
 }
 
 function toCsv() {
-  const headers = ['filename', ...fields.map(([k]) => k)];
-  const rows = state.photos.map((p) => {
+  const headers = ['filename', 'renamedFilename', ...fields.map(([k]) => k)];
+  const rows = state.photos.map((p, index) => {
     const meta = mergeMetadata(p.batchMeta, p.overrideMeta);
-    return [p.file.name, ...fields.map(([k]) => (meta[k] || '').replaceAll('"', '""'))].map((v) => `"${v}"`).join(',');
+    return [p.file.name, buildRenamedFileName(p, index), ...fields.map(([k]) => (meta[k] || '').replaceAll('"', '""'))].map((v) => `"${v}"`).join(',');
   });
   return [headers.join(','), ...rows].join('\n');
 }
@@ -149,19 +186,24 @@ el('applyAllBtn').addEventListener('click', () => {
   render();
 });
 
+['renamePrefix', 'renameSuffix', 'renameStart', 'renameDigits'].forEach((id) => {
+  el(id).addEventListener('input', () => render());
+});
+
 el('downloadSelectedBtn').addEventListener('click', async () => {
   const selected = state.photos.find((p) => p.id === state.selectedId) || state.photos[0];
   if (!selected) return alert('No photo selected.');
-  await downloadOne(selected);
+  const idx = state.photos.findIndex((p) => p.id === selected.id);
+  await downloadOne(selected, idx);
 });
 
 el('downloadAllBtn').addEventListener('click', async () => {
   if (!state.photos.length) return alert('No photos uploaded.');
   const zip = new JSZip();
-  for (const p of state.photos) {
+  for (const [index, p] of state.photos.entries()) {
     try {
       const blob = await updatedBlob(p);
-      zip.file(p.file.name.replace(/(\.[^.]+)$/i, '_metadata$1'), blob);
+      zip.file(buildRenamedFileName(p, index), blob);
     } catch (err) {
       zip.file(`${p.file.name}.txt`, `Metadata write failed: ${err.message}`);
     }

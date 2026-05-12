@@ -48,3 +48,7 @@ input[type='file'] { display: none; }
 .privacy-note { font-weight: 700; }
 .warning-note { color: var(--warn); }
 @media (max-width: 640px) { .thumb { width: 100%; height: auto; } }
+
+.rename-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap:.6rem; margin-bottom:.5rem; }
+.rename-grid label { font-size:.86rem; display:flex; flex-direction:column; gap:.25rem; }
+.rename-grid input, .rename-input { padding:.5rem; border:1px solid var(--border); border-radius:8px; }
