@@ -221,4 +221,20 @@ const dropzone = el('dropzone');
 dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
 dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
 dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
-el('fileInput').addEventListener('change', (e) => handleFiles(e.target.files));
+
+dropzone.addEventListener('click', (e) => {
+  if (e.target.closest('label[for="fileInput"]')) return;
+  el('fileInput').click();
+});
+
+dropzone.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    el('fileInput').click();
+  }
+});
+
+el('fileInput').addEventListener('change', (e) => {
+  handleFiles(e.target.files);
+  e.target.value = '';
+});
