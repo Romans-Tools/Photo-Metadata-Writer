@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Roman's Tools | Photo Metadata Writer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <h1>Roman's Tools</h1>
+      <nav>
+        <a href="#photo-metadata-writer" class="active">Photo Metadata Writer</a>
+      </nav>
+    </header>
+
+    <main id="photo-metadata-writer" class="container">
+      <section class="card intro-card">
+        <h2>Photo Metadata Writer</h2>
+        <p>
+          Add metadata to one photo or a full batch, then download updated files.
+          Processing is fully local in your browser.
+        </p>
+        <p class="privacy-note">
+          Photos are processed locally in your browser and are not uploaded.
+        </p>
+        <p class="warning-note">
+          JPEG metadata writing is the most reliable in-browser. PNG/HEIC uploads are
+          supported for preview and CSV export, but embedded write support may be
+          limited by browser-side libraries.
+        </p>
+      </section>
+
+      <section class="card uploader-card">
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload photos">
+          <p><strong>Drag & drop photos here</strong></p>
+          <p>or</p>
+          <label class="button" for="fileInput">Choose files</label>
+          <input id="fileInput" type="file" multiple accept=".jpg,.jpeg,.png,.heic,image/jpeg,image/png,image/heic,image/heif" />
+          <small>Supported: JPG/JPEG (best support), PNG, HEIC</small>
+        </div>
+        <div id="globalWarnings" class="messages"></div>
+      </section>
+
+      <section class="card metadata-card">
+        <h3>Batch metadata (Apply to all photos)</h3>
+        <form id="batchForm" class="metadata-grid"></form>
+        <button id="applyAllBtn" class="button primary" type="button">Apply to all photos</button>
+      </section>
+
+      <section class="card actions-card">
+        <button id="downloadSelectedBtn" class="button primary" type="button">Download selected updated image</button>
+        <button id="downloadAllBtn" class="button" type="button">Download all updated as ZIP</button>
+        <button id="exportCsvBtn" class="button" type="button">Export metadata CSV</button>
+      </section>
+
+      <section class="card files-card">
+        <h3>Uploaded photos</h3>
+        <div id="filesList" class="files-list"></div>
+      </section>
+    </main>
+
+    <template id="fileCardTemplate">
+      <article class="file-card">
+        <img class="thumb" alt="Photo thumbnail" />
+        <div class="file-info"></div>
+        <div class="file-warning"></div>
+        <details>
+          <summary>Per-photo metadata override</summary>
+          <form class="photo-form metadata-grid"></form>
+        </details>
+        <button class="button small download-one" type="button">Download updated image</button>
+      </article>
+    </template>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
