@@ -235,6 +235,8 @@ body {
 }
 
 .dropzone-icon {
+  width: 44px;
+  height: 44px;
   color: var(--text-faint);
   margin-bottom: .75rem;
   transition: color .25s;
