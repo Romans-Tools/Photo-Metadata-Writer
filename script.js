@@ -72,16 +72,32 @@ async function fileToDataUrl(file) {
   });
 }
 
+function toWindowsXpBytes(value) {
+  const bytes = [];
+  for (const char of String(value)) {
+    const code = char.codePointAt(0);
+    if (code > 0xffff) {
+      const high = Math.floor((code - 0x10000) / 0x400) + 0xd800;
+      const low = ((code - 0x10000) % 0x400) + 0xdc00;
+      bytes.push(high & 0xff, high >> 8, low & 0xff, low >> 8);
+    } else {
+      bytes.push(code & 0xff, code >> 8);
+    }
+  }
+  bytes.push(0, 0);
+  return bytes;
+}
+
 function applyExifToJpeg(dataUrl, meta) {
   const exif = { '0th': {}, Exif: {}, GPS: {}, '1st': {}, thumbnail: null };
   if (meta.title) exif['0th'][piexif.ImageIFD.ImageDescription] = meta.title;
-  if (meta.description) exif['0th'][piexif.ImageIFD.XPComment] = meta.description;
+  if (meta.description) exif['0th'][piexif.ImageIFD.XPComment] = toWindowsXpBytes(meta.description);
   if (meta.credit) exif['0th'][piexif.ImageIFD.Artist] = meta.credit;
   if (meta.copyright) exif['0th'][piexif.ImageIFD.Copyright] = meta.copyright;
   const place = [meta.location, meta.city, meta.state, meta.country].filter(Boolean).join(', ');
-  if (place) exif['0th'][piexif.ImageIFD.XPSubject] = place;
+  if (place) exif['0th'][piexif.ImageIFD.XPSubject] = toWindowsXpBytes(place);
   if (meta.dateTaken) exif.Exif[piexif.ExifIFD.DateTimeOriginal] = meta.dateTaken;
-  if (meta.keywords) exif['0th'][piexif.ImageIFD.XPKeywords] = meta.keywords;
+  if (meta.keywords) exif['0th'][piexif.ImageIFD.XPKeywords] = toWindowsXpBytes(meta.keywords);
   const exifStr = piexif.dump(exif);
   return piexif.insert(exifStr, dataUrl);
 }
@@ -126,6 +142,18 @@ async function handleFiles(fileList) {
   }
   updateUI();
   render();
+}
+
+function filesFromDataTransfer(dataTransfer) {
+  if (!dataTransfer) return [];
+
+  const itemFiles = [...(dataTransfer.items || [])]
+    .filter((item) => item.kind === 'file')
+    .map((item) => item.getAsFile())
+    .filter(Boolean);
+
+  if (itemFiles.length) return itemFiles;
+  return [...(dataTransfer.files || [])];
 }
 
 function removePhoto(id) {
@@ -336,9 +364,40 @@ function openFilePicker() {
 }
 
 const dropzone = el('dropzone');
-dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
-dropzone.addEventListener('drop', (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+let dragDepth = 0;
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
+  window.addEventListener(eventName, (e) => {
+    if (e.dataTransfer?.types?.includes('Files')) {
+      e.preventDefault();
+    }
+  });
+});
+
+dropzone.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragDepth += 1;
+  dropzone.classList.add('dragover');
+});
+
+dropzone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  dropzone.classList.add('dragover');
+});
+
+dropzone.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dropzone.classList.remove('dragover');
+});
+
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropzone.classList.remove('dragover');
+  handleFiles(filesFromDataTransfer(e.dataTransfer));
+});
 
 dropzone.addEventListener('click', (e) => {
   if (e.target.closest('label[for="fileInput"]')) return;
