@@ -4,84 +4,147 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Photo Metadata Writer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <header class="site-header">
-      <h1>Photo Metadata Writer</h1>
-      <nav>
-        
-      </nav>
+      <div class="header-inner">
+        <h1>
+          <svg class="header-icon" width="28" height="28" viewBox="0 0 28 28" fill="none">
+            <rect x="3" y="6" width="22" height="16" rx="3" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="11" cy="14" r="3" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M3 18l6-5 4 3 5-6 7 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Photo Metadata Writer
+        </h1>
+        <p class="tagline">Bulk edit EXIF data, rename files, and export &mdash; all locally in your browser</p>
+      </div>
     </header>
 
-    <main id="photo-metadata-writer" class="container">
-      <section class="card intro-card">
-        <h2>Photo Metadata Writer</h2>
-        <p>
-          Add metadata to one photo or a full batch, then download updated files.
-          Processing is fully local in your browser.
-        </p>
-        <p class="privacy-note">
-          Photos are processed locally in your browser and are not uploaded.
-        </p>
-        <p class="warning-note">
-          JPEG metadata writing is the most reliable in-browser. PNG/HEIC uploads are
-          supported for preview and CSV export, but embedded write support may be
-          limited by browser-side libraries.
-        </p>
-      </section>
+    <main class="container">
+      <nav class="workflow-steps" aria-label="Workflow steps">
+        <div class="step active" data-step="upload">
+          <div class="step-marker">1</div>
+          <span class="step-label">Upload</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" data-step="edit">
+          <div class="step-marker">2</div>
+          <span class="step-label">Edit Metadata</span>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step" data-step="download">
+          <div class="step-marker">3</div>
+          <span class="step-label">Download</span>
+        </div>
+      </nav>
 
-      <section class="card uploader-card">
+      <section class="card" id="uploadSection">
         <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload photos">
-          <p><strong>Drag & drop photos here</strong></p>
-          <p>or</p>
-          <label class="button" for="fileInput">Choose files</label>
+          <svg class="dropzone-icon" viewBox="0 0 56 56" fill="none">
+            <rect x="8" y="14" width="40" height="30" rx="4" stroke="currentColor" stroke-width="1.5"/>
+            <circle cx="20" cy="26" r="4" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 38l11-9 7 5 9-11 13 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M28 4v8m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="dropzone-title">Drop photos here to get started</p>
+          <p class="dropzone-divider">or</p>
+          <label class="btn btn-primary" for="fileInput">Browse Files</label>
           <input id="fileInput" type="file" multiple accept=".jpg,.jpeg,.png,.heic,image/jpeg,image/png,image/heic,image/heif" />
-          <small>Supported: JPG/JPEG (best support), PNG, HEIC</small>
+          <p class="dropzone-hint">Supports JPG/JPEG (full metadata) &middot; PNG &middot; HEIC</p>
         </div>
         <div id="globalWarnings" class="messages"></div>
       </section>
 
-      <section class="card metadata-card">
-        <h3>Batch metadata (Apply to all photos)</h3>
-        <form id="batchForm" class="metadata-grid"></form>
-        <button id="applyAllBtn" class="button primary" type="button">Apply to all photos</button>
-      </section>
-
-      <section class="card renaming-card">
-        <h3>Bulk renaming</h3>
-        <div class="rename-grid">
-          <label>Prefix<input id="renamePrefix" type="text" placeholder="wedding" /></label>
-          <label>Suffix<input id="renameSuffix" type="text" placeholder="edited" /></label>
-          <label>Start number<input id="renameStart" type="number" min="0" value="1" /></label>
-          <label>Digits<input id="renameDigits" type="number" min="1" value="3" /></label>
+      <section class="card" id="gallerySection" hidden>
+        <div class="card-head">
+          <h2>Photos <span class="badge" id="photoCount">0</span></h2>
+          <button id="clearAllBtn" class="btn btn-ghost btn-sm" type="button">Clear all</button>
         </div>
-        <small>Each output file name is built like: prefix_original_suffix_001.jpg. You can override per photo below.</small>
+        <div id="filesList" class="photo-grid"></div>
       </section>
 
-      <section class="card actions-card">
-        <button id="downloadSelectedBtn" class="button primary" type="button">Download selected updated image</button>
-        <button id="downloadAllBtn" class="button" type="button">Download all updated as ZIP</button>
-        <button id="exportCsvBtn" class="button" type="button">Export metadata CSV</button>
+      <section class="card" id="metadataSection" hidden>
+        <div class="card-head">
+          <h2>Batch Metadata</h2>
+        </div>
+        <p class="card-desc">Fill in fields below and apply to all photos at once. Override individual photos in the gallery above.</p>
+        <form id="batchForm" class="metadata-grid"></form>
+        <div class="card-foot">
+          <button id="applyAllBtn" class="btn btn-primary" type="button">Apply to All Photos</button>
+        </div>
       </section>
 
-      <section class="card files-card">
-        <h3>Uploaded photos</h3>
-        <div id="filesList" class="files-list"></div>
+      <section class="card" id="renameSection" hidden>
+        <div class="card-head">
+          <h2>Bulk Rename</h2>
+        </div>
+        <p class="card-desc">Output pattern: <code>prefix_original_suffix_001.ext</code> &mdash; override per photo in the gallery.</p>
+        <div class="rename-grid">
+          <label><span>Prefix</span><input id="renamePrefix" type="text" placeholder="e.g. wedding" /></label>
+          <label><span>Suffix</span><input id="renameSuffix" type="text" placeholder="e.g. edited" /></label>
+          <label><span>Start #</span><input id="renameStart" type="number" min="0" value="1" /></label>
+          <label><span>Digits</span><input id="renameDigits" type="number" min="1" value="3" /></label>
+        </div>
+      </section>
+
+      <section class="card download-card" id="downloadSection" hidden>
+        <div class="card-head">
+          <h2>Export &amp; Download</h2>
+        </div>
+        <div class="download-actions">
+          <button id="downloadAllBtn" class="btn btn-primary btn-lg" type="button">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 3v10m0 0l-4-4m4 4l4-4M3 15v1a1 1 0 001 1h12a1 1 0 001-1v-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Download All as ZIP
+          </button>
+          <button id="exportCsvBtn" class="btn btn-outline" type="button">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M6 2h8l4 4v10a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 2v4h4M8 10h4M8 13h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Export Metadata as CSV
+          </button>
+        </div>
+        <p class="download-note">JPEG files include embedded EXIF metadata. PNG and HEIC are included as-is.</p>
       </section>
     </main>
 
+    <div id="progressOverlay" class="overlay" hidden>
+      <div class="overlay-card">
+        <svg class="overlay-icon" width="36" height="36" viewBox="0 0 36 36" fill="none">
+          <path d="M18 6v22m0 0l-8-8m8 8l8-8M6 28v2a2 2 0 002 2h20a2 2 0 002-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3>Preparing your download</h3>
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <p id="progressText" class="progress-text">Processing photos&hellip;</p>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
     <template id="fileCardTemplate">
-      <article class="file-card">
-        <img class="thumb" alt="Photo thumbnail" />
-        <div class="file-info"></div>
-        <div class="file-warning"></div>
-        <details>
-          <summary>Per-photo metadata override</summary>
-          <label>Custom filename (no extension)<input class="rename-input" type="text" placeholder="custom_name" /></label>
+      <article class="photo-card">
+        <button class="photo-remove" type="button" title="Remove photo" aria-label="Remove photo">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <div class="photo-thumb-wrap">
+          <img class="photo-thumb" alt="Photo thumbnail" />
+          <span class="photo-status"></span>
+        </div>
+        <div class="photo-info">
+          <p class="photo-name"></p>
+          <p class="photo-rename-preview"></p>
+          <p class="photo-size"></p>
+        </div>
+        <div class="photo-warning"></div>
+        <details class="photo-override">
+          <summary>Edit metadata for this photo</summary>
+          <label class="rename-field"><span>Custom filename (no extension)</span><input class="rename-input" type="text" placeholder="custom_name" /></label>
           <form class="photo-form metadata-grid"></form>
         </details>
-        <button class="button small download-one" type="button">Download updated image</button>
+        <button class="btn btn-sm btn-outline download-one" type="button">Download this photo</button>
       </article>
     </template>
 
